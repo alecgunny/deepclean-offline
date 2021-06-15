@@ -77,7 +77,7 @@ def main(
 
     logging.info("Starting processes")
     timeout, stopped = 20, False
-    with client, writer:
+    with client, downloader, writer:
         while True:
             tick = time.time()
             while (time.time() - tick) < timeout:
