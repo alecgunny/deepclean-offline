@@ -1,0 +1,21 @@
+name: o2
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - attrs
+  - google-cloud-storage
+  - gwpy
+  - numpy
+  - ldas-tools-framecpp=2.7.0
+  - python-ldas-tools-framecpp=2.6.9
+  - pyyaml
+  - requests
+  - tblib
+  - pip
+  - pip:
+      - git+https://github.com/alecgunny/stillwater.git@multistream
+      - git+https://github.com/alecgunny/typeo.git@main
+      - --extra-index-url "https://pypi.ngc.nvidia.com"
+      - tritonclient[all]
+      - wurlitzer

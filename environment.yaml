@@ -1,0 +1,34 @@
+name: deepclean-offline
+channels:
+  - conda-forge
+  - pytorch
+
+dependencies:
+  - python=3.8
+  - bokeh
+  - ipython
+  - jupyter
+  - paramiko
+  - pip
+  - requests
+  - scp
+  - seaborn
+  - scipy
+
+# dc-prod requirements
+  - scikit-learn
+  - pytorch=1.7.0
+  - cpuonly
+  - tensorflow=2.3.0
+  - gwpy
+  - pip:
+      - google-cloud-compute
+      - jupyter-book
+      - git+https://github.com/alecgunny/cloud-utils@main
+      - git+https://github.com/alecgunny/typeo@main
+
+      # export specific stuff
+      - --extra-index-url "https://pypi.ngc.nvidia.com"
+      - tritonclient[all]
+      - git+https://github.com/alecgunny/exportlib@20.11
+      - git+https://git.ligo.org/alec.gunny/deepclean-prod.git@main
