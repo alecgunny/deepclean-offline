@@ -7,7 +7,7 @@ from stillwater import ExceptionWrapper, StreamingInferenceClient
 from frame_reader import (
     GCPFrameDownloader,
     GwfFrameDataGenerator,
-    GCPFrameWriter
+    GwfFrameWriter
 )
 
 
@@ -56,7 +56,7 @@ def main(
     # the writer combines the outputs from the
     # client and subtracts them from the strain
     # channel to produce cleaned strains
-    writer = GCPFrameWriter(output_bucket_name, channels[0], sample_rate)
+    writer = GwfFrameWriter(output_bucket_name, channels[0], sample_rate)
 
     # writer gets strain channels and blob names
     # directly from the data generator as it reads them
