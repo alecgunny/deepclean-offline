@@ -56,11 +56,12 @@ def main(
     # the writer combines the outputs from the
     # client and subtracts them from the strain
     # channel to produce cleaned strains
-    writer = GwfFrameWriter(output_bucket_name, channels[0], sample_rate)
-
-    # writer gets strain channels and blob names
-    # directly from the data generator as it reads them
-    writer.add_parent(source)
+    writer = GwfFrameWriter(
+        source.writer_q,
+        output_bucket_name,
+        channels[0],
+        sample_rate
+    )
 
     # need to route the outputs from the data
     # generator into the client, the outputs

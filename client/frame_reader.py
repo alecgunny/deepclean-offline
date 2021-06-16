@@ -79,7 +79,7 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
         self._idx = 0
         self._step = int(self.kernel_stride * self.sample_rate)
         self._self_q = mp.Queue()
-        self._writer_q = mp.Queue()
+        self.writer_q = mp.Queue()
 
         super().__init__(name="loader")
 
@@ -118,9 +118,8 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
         strain = arrays.pop(0).astype("float32")
         frame = np.stack(arrays).astype("float32")
 
-        fname2 = fname.replace(".gwf", "").split("-")
-        _, length = fname2
-        self._writer_q.put((strain, blob_name, fname, int(length)))
+        _, length = fname.replace(".gwf", "").split("-")
+        self.writer_q.put((strain, blob_name, fname, int(length)))
         os.remove(fname)
         return frame
 
@@ -163,10 +162,12 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
 class GwfFrameWriter(StreamingInferenceProcess):
     def __init__(
         self,
+        strain_q,
         output_bucket,
         channel_name,
         sample_rate,
     ):
+        self.strain_q = strain_q
         self.bucket = _get_bucket(output_bucket)
         self.channel_name = channel_name
         self.sample_rate = sample_rate
@@ -184,15 +185,13 @@ class GwfFrameWriter(StreamingInferenceProcess):
 
     def _get_data(self):
         try:
-            stuff = self._try_recv_and_check(self._parents.loader)
-        except StopIteration:
-            stuff = None
-            self._exhausted = True
+            stuff = self.strain_q.get_nowait()
+        except queue.Empty:
+            pass
+        if isinstance(stuff, ExceptionWrapper):
+            stuff.reraise()
+        self._strains.append(stuff)
 
-        if stuff is not None:
-            # check if we have a new strain
-            # from the reader process first
-            self._strains.append(stuff)
         return self._try_recv_and_check(self._parents.client)
 
     def _do_stuff_with_data(self, package):
