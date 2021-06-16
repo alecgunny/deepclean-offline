@@ -79,6 +79,7 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
         self._idx = 0
         self._step = int(self.kernel_stride * self.sample_rate)
         self._self_q = mp.Queue()
+        self._writer_q = mp.Queue()
 
         super().__init__(name="loader")
 
@@ -117,8 +118,9 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
         strain = arrays.pop(0).astype("float32")
         frame = np.stack(arrays).astype("float32")
 
-        _, length = fname.replace(".gwf", "").split("-")
-        self._children.writer.send((strain, blob_name, fname, int(length)))
+        fname2 = fname.replace(".gwf", "").split("-")
+        _, length = fname2
+        self._writer_q.put((strain, blob_name, fname, int(length)))
         os.remove(fname)
         return frame
 
