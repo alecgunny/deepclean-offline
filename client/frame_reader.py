@@ -206,7 +206,6 @@ class GwfFrameWriter(StreamingInferenceProcess):
         # add the new inferences to the
         # running noise estimate array
         self._noise = np.append(self._noise, package["output_0"].x[0])
-        print(self._noise.shape)
         if len(self._noise) >= self._strains[0][0].shape[0]:
             # if we've accumulated a frame's worth of
             # noise, split it off and subtract it from

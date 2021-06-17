@@ -79,7 +79,7 @@ def main(
             time.sleep(1e-3)
 
     logging.info("Starting processes")
-    timeout, stopped = 20, False
+    timeout = 10
     with client, downloader, source, writer:
         while True:
             tick = time.time()
@@ -88,20 +88,16 @@ def main(
                     fname = pipe.recv()
                     break
             else:
-                if stopped:
-                    logging.info("Timed out, breaking")
-                    break
                 raise RuntimeError("Timed out!")
 
             try:
                 if isinstance(fname, ExceptionWrapper):
                     fname.reraise()
             except StopIteration:
-                logging.info("StopIteration raised")
-                stopped = True
-                continue
+                break
 
             logging.info(f"Wrote frame {fname}")
+    logging.info("Completed")
 
 
 if __name__ == "__main__":
@@ -112,6 +108,10 @@ if __name__ == "__main__":
         default="client.log"
     )
     flags = vars(parser.parse_args())
-    logging.basicConfig(filename=flags.pop("log_file"), level=logging.INFO)
+    logging.basicConfig(
+        filename=flags.pop("log_file"),
+        format="%(asctime)s.%(msecs)03d - %(levelname)-8s %(message)s",
+        level=logging.INFO
+    )
 
     main(**flags)
