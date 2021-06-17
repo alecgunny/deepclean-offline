@@ -1,4 +1,4 @@
-name: o2
+name: deepclean-offline-client
 channels:
   - conda-forge
 dependencies:

@@ -15,6 +15,17 @@ import typeo
 from deepclean_prod.nn.net import DeepClean
 
 
+class StreamingDeepClean(torch.nn.Module):
+    def __init__(self, dc, update_size):
+        super().__init__()
+        self.dc = dc
+        self.update_size = update_size
+
+    def forward(self, x):
+        x = self.dc(x)
+        return x[:, -self.update_size:]
+
+
 def main(
     service_account_key_file: str,
     project: str,
@@ -57,8 +68,12 @@ def main(
 
     deepclean = DeepClean(len(channels))
     if weights_path is not None:
-        deepclean.load_state_dict(torch.load(weights_path))
+        state = torch.load(weights_path, map_location=torch.device("cpu"))
+        deepclean.load_state_dict(state)
     deepclean.eval()
+    deepclean = StreamingDeepClean(
+        deepclean, int(kernel_stride * fs)
+    )
 
     node_pool_config = cloud_utils.gke.create_gpu_node_pool_config(
         vcpus=4, gpus=1, gpu_type=inference_gpu, labels={"trtconverter": "true"}
@@ -95,6 +110,7 @@ def main(
     finally:
         # carry on without waiting for delete to complete,
         # double check for that at the end
+        # cluster.k8s_client.remove_deployment("trt-converter")
         cloud_utils.utils.wait_for(
             node_pool.submit_delete,
             "Waiting to delete node pool",
@@ -132,7 +148,7 @@ def main(
             blob_path = path.replace(os.path.join(repo_dir, ""), "")
 
             # change path separaters in case we're on Windows
-            blob_path = path.replace("\\", "/")
+            blob_path = blob_path.replace("\\", "/")
             logging.info(f"Copying {path} to {blob_path}")
 
             blob = bucket.blob(blob_path)

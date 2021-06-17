@@ -28,6 +28,6 @@ elif [[ "$cmd" == "list" ]]; then
     conda list
 elif [[ "$cmd" == "run" ]]; then
     init
-    conda activate o2
+    conda activate deepclean-offline-client
     python client.py "$@"
 fi
