@@ -106,20 +106,27 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
                 continue
             stuff = self._parents.downloader.recv()
             break
+
         if isinstance(stuff, ExceptionWrapper):
-            stuff.reraise()
+            try:
+                stuff.reraise()
+            except StopIteration as e:
+                self._self_q.put(stuff)
+                raise
 
         fname, blob_name = stuff
         with redirect_stderr(StringIO()), sys_pipes():
-            timeseries = TimeSeriesDict.read(fname, channels=self.channels)
+            timeseries = TimeSeriesDict.read(
+                fname, channels=list(set(self.channels))
+            )
+
         timeseries.resample(self.sample_rate)
         arrays = [timeseries[channel].value for channel in self.channels]
 
         strain = arrays.pop(0).astype("float32")
         frame = np.stack(arrays).astype("float32")
 
-        _, length = fname.replace(".gwf", "").split("-")
-        self.writer_q.put((strain, blob_name, fname, int(length)))
+        self.writer_q.put((strain, blob_name, fname))
         os.remove(fname)
         return frame
 
@@ -135,8 +142,8 @@ class GwfFrameDataGenerator(StreamingInferenceProcess):
 
             # check if we have any data left from the old frame
             # and if so tack it to the start of the new frame
-            if self._frame is not None and stop < self._frame.shape[1]:
-                leftover = self._frame[:, start:]
+            if self._frame is not None and start < self._frame.shape[1]:
+                leftover = self._frame[:, -start:]
                 frame = np.concatenate([leftover, frame], axis=1)
 
             # reset the frame and index and update
@@ -188,9 +195,10 @@ class GwfFrameWriter(StreamingInferenceProcess):
             stuff = self.strain_q.get_nowait()
         except queue.Empty:
             pass
-        if isinstance(stuff, ExceptionWrapper):
-            stuff.reraise()
-        self._strains.append(stuff)
+        else:
+            if isinstance(stuff, ExceptionWrapper):
+                stuff.reraise()
+            self._strains.append(stuff)
 
         return self._try_recv_and_check(self._parents.client)
 
@@ -198,13 +206,13 @@ class GwfFrameWriter(StreamingInferenceProcess):
         # add the new inferences to the
         # running noise estimate array
         self._noise = np.append(self._noise, package["output_0"].x[0])
-
-        if len(self._noise) >= (self._strains[0][-1] * self.sample_rate):
+        print(self._noise.shape)
+        if len(self._noise) >= self._strains[0][0].shape[0]:
             # if we've accumulated a frame's worth of
             # noise, split it off and subtract it from
             # its corresponding strain
-            noise, self._noise = np.split(self._noise, [self.sample_rate])
             strain, blob_name, fname = self._strains.pop(0)
+            noise, self._noise = np.split(self._noise, [strain.shape[0]])
             t0, _ = fname.replace(".gwf", "").split("-")
 
             # subtract the noise estimate from the strain

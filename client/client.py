@@ -23,7 +23,7 @@ def main(
     kernel_stride: float,
     sample_rate: float = 4000,
     chunk_size: float = 1024,
-    start_time: float = None
+    start_time: typing.Optional[float] = None
 ):
     client = StreamingInferenceClient(
         url=url,
@@ -35,6 +35,7 @@ def main(
 
     with open("../channels.txt", "r") as f:
         channels = [i for i in f.read().splitlines() if i]
+    channels = channels[2:] + channels[-2:]
 
     # downloader pulls the frames down from GCP to local files
     downloader = GCPFrameDownloader(bucket_name, fnames)
@@ -67,18 +68,19 @@ def main(
     # generator into the client, the outputs
     # of which will be passed to the writer
     # for aggregation
-    client.add_source(source, writer, sequence_id)
+    client.add_data_source(source, writer, sequence_id)
 
     # now get the written blob names from
     # the writer for logging purposes
     pipe = writer.add_child("output")
 
-    while time.time() < start_time:
-        time.sleep(1e-3)
+    if start_time is not None:
+        while time.time() < start_time:
+            time.sleep(1e-3)
 
     logging.info("Starting processes")
     timeout, stopped = 20, False
-    with client, downloader, writer:
+    with client, downloader, source, writer:
         while True:
             tick = time.time()
             while (time.time() - tick) < timeout:
@@ -89,6 +91,7 @@ def main(
                 if stopped:
                     logging.info("Timed out, breaking")
                     break
+                raise RuntimeError("Timed out!")
 
             try:
                 if isinstance(fname, ExceptionWrapper):
