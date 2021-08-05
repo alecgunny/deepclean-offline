@@ -7,8 +7,8 @@ from itertools import cycle
 import typeo
 from google.cloud import storage
 
-import gcp
 import utils
+from utils import gcp
 
 
 def main(
