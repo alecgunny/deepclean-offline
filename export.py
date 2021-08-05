@@ -71,9 +71,7 @@ def main(
         state = torch.load(weights_path, map_location=torch.device("cpu"))
         deepclean.load_state_dict(state)
     deepclean.eval()
-    deepclean = StreamingDeepClean(
-        deepclean, int(kernel_stride * fs)
-    )
+    deepclean = StreamingDeepClean(deepclean, int(kernel_stride * fs))
 
     node_pool_config = cloud_utils.gke.create_gpu_node_pool_config(
         vcpus=4, gpus=1, gpu_type=inference_gpu, labels={"trtconverter": "true"}
