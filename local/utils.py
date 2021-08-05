@@ -7,8 +7,8 @@ import queue
 import re
 import threading
 import time
-from zlib import adler32
 from functools import lru_cache
+from zlib import adler32
 
 import attr
 import cloud_utils as cloud
@@ -16,7 +16,6 @@ import requests
 from cloud_utils.utils import wait_for
 from google.cloud import container_v1 as container
 from google.cloud import storage
-
 
 _PACKAGE = "deepclean-offline"
 _PACKAGE_URL = f"https://github.com/alecgunny/{_PACKAGE}.git"
@@ -48,24 +47,23 @@ def get_blobs(bucket, total_clients):
     blobs = []
     for i in range(total_clients - remainder):
         blobs.append(
-            blob_names[i * blobs_per_client: (i + 1) * blobs_per_client]
+            blob_names[i * blobs_per_client : (i + 1) * blobs_per_client]
         )
 
     start_idx = (i + 1) * blobs_per_client
     for i in range(remainder):
         blobs.append(
             blob_names[
-                start_idx + i * (blobs_per_client - 1):
-                start_idx + (i + 1) * (blobs_per_client - 1)
+                start_idx
+                + i * (blobs_per_client - 1) : start_idx
+                + (i + 1) * (blobs_per_client - 1)
             ]
         )
     return blobs
 
 
 def update_model_configs(
-    bucket: storage.Bucket,
-    streams: int,
-    instances: int
+    bucket: storage.Bucket, streams: int, instances: int
 ) -> None:
     count_re = re.compile("(?<=\n  count: )[0-9]+(?=\n)")
 
@@ -81,9 +79,7 @@ def update_model_configs(
             count = instances
         else:
             continue
-        logging.info(
-            f"Scaling model {model_name} to count {count}"
-        )
+        logging.info(f"Scaling model {model_name} to count {count}")
 
         # replace the instance group count
         # in the config protobuf
@@ -137,7 +133,11 @@ def _run_in_pool(fn, args, msg, exit_msg, max_workers=None):
 def configure_vm(vm):
     vm.wait_until_ready(verbose=False)
 
-    cmds = [f"git clone -q {_PACKAGE_URL}", f"{_RUN} install", f"{_RUN} create"]
+    cmds = [
+        f"git clone -q {_PACKAGE_URL}",
+        f"{_RUN} install",
+        f"{_RUN} create",
+    ]
     for cmd in cmds:
         _, err = vm.run(cmd)
         if err:
@@ -150,7 +150,7 @@ def configure_vms_parallel(vms):
         vms,
         msg="Waiting for VMs to configure",
         exit_msg="Configured all VMs",
-        max_workers=min(32, len(vms))
+        max_workers=min(32, len(vms)),
     )
 
 
@@ -164,18 +164,20 @@ class ExperimentCluster:
         num_nodes: int,
         gpus_per_node: int,
         vcpus_per_gpu: int,
-        gpu_type: str = "t4"
+        gpu_type: str = "t4",
     ):
         self._manager = cloud.GKEClusterManager(
             project=project, zone=zone, credentials=service_account_key_file
         )
         self._cluster_config = container.Cluster(
             name=cluster_name,
-            node_pools=[container.NodePool(
-                name="default-pool",
-                initial_node_count=2,
-                config=container.NodeConfig()
-            )]
+            node_pools=[
+                container.NodePool(
+                    name="default-pool",
+                    initial_node_count=2,
+                    config=container.NodeConfig(),
+                )
+            ],
         )
         vcpus_per_node = vcpus_per_gpu * gpus_per_node
         node_pool_config = cloud.create_gpu_node_pool_config(
@@ -186,7 +188,7 @@ class ExperimentCluster:
         self._node_pool_config = container.NodePool(
             name=f"tritonserver-{gpu_type}-pool",
             initial_node_count=num_nodes,
-            config=node_pool_config
+            config=node_pool_config,
         )
         self.gpu_type = gpu_type
 
@@ -228,7 +230,7 @@ class ExperimentCluster:
                 vcpus=vcpus,
                 bucket=bucket_name,
                 name=f"tritonserver-{i}",
-                gpu=self.gpu_type
+                gpu=self.gpu_type,
             )
 
     def get_ips(self):
@@ -252,29 +254,29 @@ class ExperimentClusterCPU:
         zone: str,
         cluster_name: str,
         num_nodes: int,
-        vcpus: int
+        vcpus: int,
     ):
         self._manager = cloud.GKEClusterManager(
             project=project, zone=zone, credentials=service_account_key_file
         )
         self._cluster_config = container.Cluster(
             name=cluster_name,
-            node_pools=[container.NodePool(
-                name="default-pool",
-                initial_node_count=2,
-                config=container.NodeConfig()
-            )]
+            node_pools=[
+                container.NodePool(
+                    name="default-pool",
+                    initial_node_count=2,
+                    config=container.NodeConfig(),
+                )
+            ],
         )
         node_pool_config = cloud.create_gpu_node_pool_config(
-            vcpus=vcpus,
-            gpus=4,
-            gpu_type="t4"
+            vcpus=vcpus, gpus=4, gpu_type="t4"
         )
 
         self._node_pool_config = container.NodePool(
             name="tritonserver-cpu-pool",
             initial_node_count=num_nodes,
-            config=node_pool_config
+            config=node_pool_config,
         )
         self._cluster = None
         self._node_pool = None
@@ -377,17 +379,17 @@ class RunParallel:
             args,
             "Waiting for tasks to complete",
             "All tasks completed",
-            max_workers=min(32, len(vms))
+            max_workers=min(32, len(vms)),
         )
 
 
 _hexes = "[0-9a-f]"
 _gpu_id_pattern = "-".join([_hexes + f"{{{i}}}" for i in [8, 4, 4, 4, 12]])
 _res = [
-    re.compile('(?<=nv_inference_)[a-z_]+(?=_duration_us)'),
+    re.compile("(?<=nv_inference_)[a-z_]+(?=_duration_us)"),
     re.compile(f'(?<=gpu_uuid="GPU-){_gpu_id_pattern}(?=")'),
-    re.compile(f'(?<=model=")[a-z_-]+(?=",version=)'),
-    re.compile("(?<=} )[0-9.]+$")
+    re.compile('(?<=model=")[a-z_-]+(?=",version=)'),
+    re.compile("(?<=} )[0-9.]+$"),
 ]
 
 
@@ -407,6 +409,49 @@ class ServerMonitor(mp.Process):
         self._error_q = mp.Queue()
         super().__init__()
 
+    def _process_rows(
+        self, times, counts, utilizations, models_to_update, rows
+    ):
+        data = ""
+        for row in rows:
+            try:
+                gpu_id, process, model, value = [
+                    r.search(row).group(0) for r in _res
+                ]
+            except AttributeError:
+                # this row didn't have the appropriate data, move on
+                continue
+
+            value = float(value)
+            index = (gpu_id, process, model)
+
+            if model not in models_to_update:
+                # we don't need to record a row of data for this
+                # GPU/model combination, either because this is
+                # the first loop or because we didn't record any
+                # new inferences during this interval
+                if model in self._models and index not in times:
+                    # we don't have a duration for this process
+                    # on this node/GPU/model combo, so create one
+                    times[index] = value
+                continue
+
+            # calculate how much time was spent doing
+            # this process for this model since the
+            # last measurement
+            delta = value - times[index]
+
+            # update our internal records of for this
+            # process/model combo for next time, as well
+            # as the count for this model
+            times[index] = value
+            count = counts[model]
+
+            data += "\n{{ip}},{{step}},{},{},{},{},{{interval}},{},{}".format(
+                gpu_id, model, process, delta, count, utilizations[gpu_id]
+            )
+        return data
+
     def _get_data_for_ip(self, ip, step):
         response = requests.get(f"http://{ip}:8002/metrics")
         response.raise_for_status()
@@ -420,8 +465,7 @@ class ServerMonitor(mp.Process):
         finally:
             self._last_times[ip] = request_time
 
-        data, counts, utilizations = "", {}, {}
-        models_to_update = []
+        counts, utilizations, models_to_update = [], {}, {}
         rows = response.content.decode().split("\n")
 
         # start by collecting the number of new inference
@@ -438,12 +482,12 @@ class ServerMonitor(mp.Process):
                 if model in _MODELS:
                     value = int(float(value))
                     try:
-                        count = value - self._counts[(ip, gpu_id, model)]
+                        count = value - self._counts[(gpu_id, model)]
                         if count > 0:
                             # if no new inferences were registered, we
                             # won't need to update this model below
                             models_to_update.append((gpu_id, model))
-                        counts[(ip, gpu_id, model)] = count
+                        counts[(gpu_id, model)] = count
                     except KeyError:
                         # we haven't recorded this model before, so
                         # there's no need to update it
@@ -455,50 +499,25 @@ class ServerMonitor(mp.Process):
 
             elif row.startswith("nv_gpu_utilization"):
                 try:
-                    gpu_id, value = [r.search(row).group(0) for r in _res[1::2]]
+                    gpu_id, value = [
+                        r.search(row).group(0) for r in _res[1::2]
+                    ]
                 except AttributeError:
                     continue
                 utilizations[gpu_id] = value
 
-        for row in rows:
-            try:
-                process, gpu_id, model, value = [
-                    r.search(row).group(0) for r in _res
-                ]
-            except AttributeError:
-                continue
+        # look for the dictionary recording the
+        # last measured total processing times
+        # for each model/process combo on this
+        # ip. Create an entry if it doesn't exist
+        try:
+            times = self._times[ip]
+        except KeyError:
+            times = self._times[ip] = {}
 
-            value = float(value)
-            index = (ip, process, gpu_id, model)
-
-            if (gpu_id, model) not in models_to_update:
-                # we don't need to record a row of data for this
-                # GPU/model combination, either because this is
-                # the first loop or because we didn't record any
-                # new inferences during this interval
-                if model in _MODELS and index not in self._times:
-                    # we don't have a duration for this process
-                    # on this node/GPU/model combo, so create one
-                    self._times[index] = value
-                continue
-
-            delta = value - self._times[index]
-            self._times[index] = value
-            utilization = utilizations[gpu_id]
-            count = counts[(ip, gpu_id, model)]
-
-            data += "\n" + ",".join([
-                ip,
-                str(step),
-                gpu_id,
-                model,
-                process,
-                str(delta),
-                str(interval),
-                str(count),
-                utilization
-            ])
-        return data
+        return self._process_rows(
+            times, counts, utilizations, models_to_update, rows
+        ).format(ip=ip, step=step, interval=interval)
 
     @property
     def stopped(self) -> bool:
@@ -566,9 +585,7 @@ class ServerMonitorCPU(mp.Process):
         self.ips = ips
         self.filename = filename
 
-        self.header = (
-            "ip,step,model,process,time (us),interval,count"
-        )
+        self.header = "ip,step,model,process,time (us),interval,count"
         self._last_times = {}
         self._counts = {}
         self._times = {}
@@ -577,6 +594,47 @@ class ServerMonitorCPU(mp.Process):
         self._error_q = mp.Queue()
         self._models = ["deepclean-cpu", "snapshotter-cpu"]
         super().__init__()
+
+    def _process_rows(self, times, counts, models_to_update, rows):
+        data = ""
+        for row in rows:
+            try:
+                process, model, value = [
+                    r.search(row).group(0) for r in _res[:1] + _res[2:]
+                ]
+            except AttributeError:
+                # this row didn't have the appropriate data, move on
+                continue
+
+            value = float(value)
+            index = (process, model)
+
+            if model not in models_to_update:
+                # we don't need to record a row of data for this
+                # GPU/model combination, either because this is
+                # the first loop or because we didn't record any
+                # new inferences during this interval
+                if model in self._models and index not in times:
+                    # we don't have a duration for this process
+                    # on this node/GPU/model combo, so create one
+                    times[index] = value
+                continue
+
+            # calculate how much time was spent doing
+            # this process for this model since the
+            # last measurement
+            delta = value - times[index]
+
+            # update our internal records of for this
+            # process/model combo for next time, as well
+            # as the count for this model
+            times[index] = value
+            count = counts[model]
+
+            data += "\n{{ip}},{{step}},{},{},{},{{interval}},{}".format(
+                model, process, delta, count
+            )
+        return data
 
     def _get_data_for_ip(self, ip, step):
         response = requests.get(f"http://{ip}:8002/metrics")
@@ -591,8 +649,7 @@ class ServerMonitorCPU(mp.Process):
         finally:
             self._last_times[ip] = request_time
 
-        data, counts = "", {}
-        models_to_update = []
+        counts, models_to_update = [], {}
         rows = response.content.decode().split("\n")
 
         # start by collecting the number of new inference
@@ -600,9 +657,7 @@ class ServerMonitorCPU(mp.Process):
         for row in rows:
             if row.startswith("nv_inference_exec_count"):
                 try:
-                    model, value = [
-                        r.search(row).group(0) for r in _res[2:]
-                    ]
+                    model, value = [r.search(row).group(0) for r in _res[2:]]
                 except AttributeError:
                     continue
 
@@ -614,7 +669,7 @@ class ServerMonitorCPU(mp.Process):
                             # if no new inferences were registered, we
                             # won't need to update this model below
                             models_to_update.append(model)
-                        counts[(ip, model)] = count
+                        counts[model] = count
                     except KeyError:
                         # we haven't recorded this model before, so
                         # there's no need to update it
@@ -624,42 +679,18 @@ class ServerMonitorCPU(mp.Process):
                         # for this model on this GPU
                         self._counts[(ip, model)] = value
 
-        for row in rows:
-            try:
-                process, model, value = [
-                    r.search(row).group(0) for r in _res[:1] + _res[2:]
-                ]
-            except AttributeError:
-                continue
+        # look for the dictionary recording the
+        # last measured total processing times
+        # for each model/process combo on this
+        # ip. Create an entry if it doesn't exist
+        try:
+            times = self._times[ip]
+        except KeyError:
+            times = self._times[ip] = {}
 
-            value = float(value)
-            index = (ip, process, model)
-
-            if model not in models_to_update:
-                # we don't need to record a row of data for this
-                # GPU/model combination, either because this is
-                # the first loop or because we didn't record any
-                # new inferences during this interval
-                if model in self._models and index not in self._times:
-                    # we don't have a duration for this process
-                    # on this node/GPU/model combo, so create one
-                    self._times[index] = value
-                continue
-
-            delta = value - self._times[index]
-            self._times[index] = value
-            count = counts[(ip, model)]
-
-            data += "\n" + ",".join([
-                ip,
-                str(step),
-                model,
-                process,
-                str(delta),
-                str(interval),
-                str(count)
-            ])
-        return data
+        return self._process_rows(
+            times, counts, models_to_update, rows
+        ).format(step=step, ip=ip, interval=interval)
 
     @property
     def stopped(self) -> bool:

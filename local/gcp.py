@@ -1,19 +1,17 @@
 import re
-import yaml
 import time
 import typing
 from contextlib import contextmanager
 
 import attr
 import paramiko
-from requests import HTTPError
-from scp import SCPClient
-
+import yaml
+from cloud_utils.utils import wait_for
 from google.auth.transport.requests import Request as AuthRequest
 from google.cloud import compute_v1 as compute
 from google.oauth2 import service_account
-
-from cloud_utils.utils import wait_for
+from requests import HTTPError
+from scp import SCPClient
 
 
 @attr.s(auto_attribs=True)
@@ -23,6 +21,7 @@ class VMConnection:
     sharing the same ssh information. Leverages contexts
     and some simple throttling to keep things a bit neat
     """
+
     username: str
     ssh_key_file: str
     sleep_between_connections: typing.Optional[float] = 1.0
@@ -46,7 +45,7 @@ class VMConnection:
                 client.connect(
                     username=self.username,
                     hostname=instance.ip,
-                    key_filename=self.ssh_key_file
+                    key_filename=self.ssh_key_file,
                 )
                 break
             except Exception:
@@ -84,6 +83,7 @@ class ClientVMManager:
     Somewhat silly container class for making the
     creation of new client VMs a bit simpler
     """
+
     project: str
     zone: str
     prefix: str
@@ -118,7 +118,7 @@ class ClientVMManager:
                 "https://www.googleapis.com/auth/cloud-platform",
                 "https://www.googleapis.com/auth/compute",
                 "https://www.googleapis.com/auth/devstorage.full_control",
-            ]
+            ],
         )
         credentials.refresh(AuthRequest())
         return credentials
@@ -138,7 +138,7 @@ class ClientVMManager:
             self.zone,
             vcpus,
             self.credentials,
-            self.connection
+            self.connection,
         )
         self.instances.insert(idx, instance)
         return instance
@@ -171,6 +171,7 @@ class ClientVMInstance:
     connecting to GCP VMs for running benchmark
     client code
     """
+
     name: str
     ip: str
     conn: VMConnection
@@ -193,22 +194,14 @@ class ClientVMInstance:
             return client.get(filename, target or "")
 
     @classmethod
-    def create(
-        cls,
-        name,
-        project,
-        zone,
-        vcpus,
-        credentials,
-        connection
-    ):
+    def create(cls, name, project, zone, vcpus, credentials, connection):
         with open("startup-script.sh") as f:
             startup_script = f.read()
 
         client = compute.InstancesClient(credentials=credentials)
         sa = compute.ServiceAccount(
             email=credentials._service_account_email,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
         request = compute.InsertInstanceRequest(
             instance_resource=compute.Instance(
@@ -229,20 +222,19 @@ class ClientVMInstance:
                                 "projects/debian-cloud/global/"
                                 "images/family/debian-10"
                             )
-                        )
+                        ),
                     )
                 ],
                 metadata=compute.Metadata(
                     items=[
                         compute.Items(
-                            key="startup-script",
-                            value=startup_script
+                            key="startup-script", value=startup_script
                         )
                     ]
-                )
+                ),
             ),
             project=project,
-            zone=zone
+            zone=zone,
         )
 
         try:
@@ -279,7 +271,7 @@ class ClientVMInstance:
                 output, _ = self.run("cat /var/log/daemon.log")
             except (
                 paramiko.ssh_exception.NoValidConnectionsError,
-                paramiko.ssh_exception.AuthenticationException
+                paramiko.ssh_exception.AuthenticationException,
             ):
                 if time.time() - start_time > 60:
                     raise RuntimeError("Couldn't connect to VM instance")
@@ -297,7 +289,7 @@ class ClientVMInstance:
             wait_for(
                 _callback,
                 f"Waiting for VM {self.name} to be ready at IP {self.ip}",
-                f"VM {self.name} ready"
+                f"VM {self.name} ready",
             )
         else:
             while not _callback():

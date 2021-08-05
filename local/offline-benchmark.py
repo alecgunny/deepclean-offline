@@ -1,14 +1,14 @@
 import logging
 import os
-import time
 import sys
+import time
 from itertools import cycle
 
+import typeo
 from google.cloud import storage
 
 import gcp
 import utils
-import typeo
 
 
 def main(
@@ -27,7 +27,7 @@ def main(
     instances_per_gpu: int,
     vcpus_per_gpu: int,
     kernel_stride: float,
-    generation_rate: float
+    generation_rate: float,
 ):
     run_config = utils.RunConfig(
         num_nodes=num_nodes,
@@ -36,7 +36,7 @@ def main(
         instances=instances_per_gpu,
         vcpus_per_gpu=vcpus_per_gpu,
         kernel_stride=kernel_stride,
-        generation_rate=generation_rate
+        generation_rate=generation_rate,
     )
     run_config.save()
 
@@ -48,7 +48,7 @@ def main(
         num_nodes=num_nodes,
         gpus_per_node=gpus_per_node,
         vcpus_per_gpu=vcpus_per_gpu,
-        gpu_type="v100"
+        gpu_type="v100",
     )
 
     storage_client = storage.Client(credentials=cluster.credentials)
@@ -75,7 +75,7 @@ def main(
         zone=zone,
         prefix="o2-client",
         service_account_key_file=service_account_key_file,
-        connection=gcp.VMConnection(username, ssh_key_file)
+        connection=gcp.VMConnection(username, ssh_key_file),
     )
     with cluster:
         cluster.deploy_servers(model_repo_bucket_name)
@@ -93,12 +93,14 @@ def main(
                 bucket_name=data_bucket_name,
                 output_bucket_name=output_data_bucket_name,
                 kernel_stride=kernel_stride,
-                sample_rate=4096
+                sample_rate=4096,
             )
 
             # run the clients while monitoring the server,
             # keep track of how much time it takes us
-            stats_fname = os.path.join(run_config.output_dir, "server-stats.csv")
+            stats_fname = os.path.join(
+                run_config.output_dir, "server-stats.csv"
+            )
             start_time = time.time()
             with utils.ServerMonitor(ips, stats_fname) as monitor:
                 runner(client_manager.instances, blobs, cycle(ips))
@@ -118,6 +120,6 @@ if __name__ == "__main__":
         format="%(asctime)s.%(msecs)03d - %(levelname)-8s %(message)s",
         stream=sys.stdout,
         datefmt="%H:%M:%S",
-        level=logging.INFO
+        level=logging.INFO,
     )
     main(**vars(flags))

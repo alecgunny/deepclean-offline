@@ -17,5 +17,5 @@ class Updater:
 
         if self._n < self._update_steps:
             self._n += 1
-            self._weights[:-self._n * self._update_size] += 1
+            self._weights[: -self._n * self._update_size] += 1
         return y
